@@ -37,8 +37,8 @@ function applyLayout() {
 async function loadTrips() {
   // Звертаємося до таблиці trips через інтернет (REST API Supabase).
   // select=… — які поля взяти; order=id.asc — у порядку додавання.
-  const url = SUPABASE_URL + '/rest/v1/trips?select=id,title,location,start_date,end_date&order=id.asc';
   try {
+    const url = SUPABASE_URL + '/rest/v1/trips?select=id,title,location,start_date,end_date&order=id.asc';
     const response = await fetch(url, { headers: { apikey: SUPABASE_KEY } });
     if (!response.ok) throw new Error('Supabase відповів кодом ' + response.status);
     trips = await response.json();
