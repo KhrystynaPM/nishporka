@@ -25,7 +25,7 @@
     </header>
 
     <!-- Основна частина: екран «Мої подорожі» (Екран 1 з аналізу) -->
-    <main class="main">
+    <main class="main" id="list-screen">
       <div class="wrap">
         <!-- На телефоні слоган стоїть тут, над заголовком (як у макеті Trips-Mobile) -->
         <div class="slogan" id="slogan-sm" style="display:none">«Занотуй свою пригоду»</div>
@@ -36,12 +36,53 @@
             <!-- Тут app.js пише «Завантажуємо…» або «5 подорожей» -->
             <p class="muted" id="count" style="margin:8px 0 0;font-size:16px">Завантажуємо подорожі…</p>
           </div>
-          <!-- Кнопка поки не працює: створення подорожі — це крок K3 -->
+          <!-- Відкриває форму «Нова подорож» (крок K3) -->
           <button type="button" class="btn btn-orange" id="create-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Створити подорож</button>
         </div>
 
         <!-- Сюди app.js вставляє картки подорожей з бази (або повідомлення про помилку) -->
         <div id="trips"></div>
+      </div>
+    </main>
+
+    <!-- Екран форми подорожі (макет Form-Trip). Один і той самий для «Нова подорож»
+         і «Редагувати подорож» — app.js лише міняє заголовок і заповнює поля.
+         Поки форма закрита, вона схована (display:none). -->
+    <main class="main" id="form-screen" style="display:none;padding-top:24px">
+      <div class="narrow">
+        <a class="back" href="#" id="form-back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Усі подорожі</a>
+        <h1 class="h1" id="form-title" style="margin-top:8px">Нова подорож</h1>
+        <p class="lede">Заповніть основне. Справи, речі, бюджет і місця додасте вже всередині подорожі.</p>
+
+        <!-- novalidate: перевіряємо поля самі (app.js), щоб текст помилки був українською і в стилі макета -->
+        <form class="card formcard" id="trip-form" novalidate>
+          <div>
+            <label class="lbl" for="trip-name">Назва</label>
+            <input class="inp" id="trip-name" type="text" placeholder="Наприклад, Рим, весна" maxlength="120">
+          </div>
+          <div>
+            <label class="lbl" for="trip-place">Локація</label>
+            <input class="inp" id="trip-place" type="text" placeholder="Наприклад, Італія, Рим" maxlength="120">
+          </div>
+          <!-- type="date": браузер показує календар і сам віддає дату як 2027-04-14 (рік-місяць-день).
+               Так у базі більше не буде плутанини «місяць/день», як із ручним введенням у Table Editor. -->
+          <div class="fgrid" id="date-grid">
+            <div>
+              <label class="lbl" for="trip-start">Дата початку</label>
+              <input class="inp" id="trip-start" type="date">
+            </div>
+            <div>
+              <label class="lbl" for="trip-end">Дата кінця</label>
+              <input class="inp" id="trip-end" type="date">
+            </div>
+          </div>
+          <!-- Сюди app.js пише помилку: не вказана назва, дати переплутані, база не відповіла -->
+          <p id="form-error" role="alert" style="display:none;margin:0;font-weight:700;color:var(--red)"></p>
+          <div class="actions" id="form-actions">
+            <button type="button" class="btn btn-line" id="form-cancel">Скасувати</button>
+            <button type="submit" class="btn btn-violet" id="form-save" style="padding:0 30px">Зберегти</button>
+          </div>
+        </form>
       </div>
     </main>
 

@@ -1,6 +1,7 @@
 // Нишпорка — логіка сторінки.
 // 1) Обираємо вигляд «телефон» або «ноутбук».
 // 2) Беремо список подорожей з бази Supabase і малюємо картки (крок K2).
+// 3) Створюємо, редагуємо й видаляємо подорожі (крок K3).
 // Адреса бази й ключ лежать у config.js.
 
 const app = document.getElementById('app');
@@ -10,11 +11,28 @@ const titleRow = document.getElementById('titlerow');
 const countText = document.getElementById('count');
 const createBtn = document.getElementById('create-btn');
 const tripsBox = document.getElementById('trips');
+const listScreen = document.getElementById('list-screen');
+const formScreen = document.getElementById('form-screen');
+const form = document.getElementById('trip-form');
+const formTitle = document.getElementById('form-title');
+const formError = document.getElementById('form-error');
+const saveBtn = document.getElementById('form-save');
+const cancelBtn = document.getElementById('form-cancel');
+const dateGrid = document.getElementById('date-grid');
+const fields = {
+  title: document.getElementById('trip-name'),
+  location: document.getElementById('trip-place'),
+  start_date: document.getElementById('trip-start'),
+  end_date: document.getElementById('trip-end'),
+};
 const phone = window.matchMedia('(max-width: 700px)');
 
 // Тут зберігаємо подорожі, які вже прийшли з бази.
 // null — ще завантажуємо; 'error' — не вдалося; масив — усе добре.
 let trips = null;
+
+// Яку подорож зараз редагуємо: null — створюємо нову.
+let editingId = null;
 
 // ---------- 1. Вигляд «телефон / ноутбук» ----------
 
@@ -28,6 +46,12 @@ function applyLayout() {
   // На телефоні кнопка «Створити подорож» на всю ширину під заголовком.
   createBtn.classList.toggle('full', isPhone);
   titleRow.style.marginBottom = isPhone ? '20px' : '';
+  // Форма за макетом: на телефоні дати одна під одною, кнопки на всю ширину,
+  // і «Зберегти» стоїть першою (зверху), а на ноутбуці — праворуч.
+  dateGrid.style.gridTemplateColumns = isPhone ? '1fr' : '';
+  saveBtn.classList.toggle('full', isPhone);
+  cancelBtn.classList.toggle('full', isPhone);
+  saveBtn.style.order = isPhone ? '-1' : '';
   // Картки на телефоні й ноутбуці різні, тож малюємо їх наново.
   render();
 }
@@ -38,16 +62,30 @@ async function loadTrips() {
   // Звертаємося до таблиці trips через інтернет (REST API Supabase).
   // select=… — які поля взяти; order=id.asc — у порядку додавання.
   try {
-    const url = SUPABASE_URL + '/rest/v1/trips?select=id,title,location,start_date,end_date&order=id.asc';
-    const response = await fetch(url, { headers: { apikey: SUPABASE_KEY } });
-    if (!response.ok) throw new Error('Supabase відповів кодом ' + response.status);
-    trips = await response.json();
+    trips = await api('GET', '?select=id,title,location,start_date,end_date&order=id.asc');
   } catch (err) {
     // Причину пишемо в консоль браузера — для розробника. Користувачу — простий текст.
     console.error('Не вдалося завантажити подорожі:', err);
     trips = 'error';
   }
   render();
+}
+
+// Один спільний «листоноша» для всіх запитів до таблиці trips.
+// method: GET — прочитати, POST — створити, PATCH — змінити, DELETE — видалити.
+async function api(method, query, body) {
+  const response = await fetch(SUPABASE_URL + '/rest/v1/trips' + query, {
+    method: method,
+    headers: {
+      apikey: SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      // Просимо базу повернути збережений запис — так одразу бачимо, що вийшло.
+      Prefer: 'return=representation',
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  if (!response.ok) throw new Error('Supabase відповів кодом ' + response.status + ': ' + await response.text());
+  return response.json();
 }
 
 // ---------- 3. Малюємо екран ----------
@@ -95,18 +133,26 @@ function tripCard(trip, i) {
   const dates = dateRange(trip.start_date, trip.end_date);
   const when = dates ? '<div class="meta">' + ICON_CAL + dates + '</div>' : '';
 
-  // Відкриття подорожі (Екран 2) зʼявиться на кроці K5, тому поки це не посилання.
+  // Кнопки «Редагувати» і «Видалити». ТИМЧАСОВО стоять на картці:
+  // у макеті вони на екрані подорожі (Екран 2), а його ми робимо на кроці K5 —
+  // тоді перенесемо кнопки туди, а картка знову стане посиланням «Відкрити».
+  // data-action і data-id підказують app.js, що натиснули і для якої подорожі.
+  const buttons = '<div class="btns" style="margin-top:auto;padding-top:4px' + (phone.matches ? ';flex-basis:100%' : '') + '">' +
+    '<button type="button" class="btn btn-line" data-action="edit" data-id="' + trip.id + '">Редагувати</button>' +
+    '<button type="button" class="btn btn-dline" data-action="delete" data-id="' + trip.id + '">Видалити</button>' +
+    '</div>';
+
   if (phone.matches) {
-    return '<div class="card trip">' +
+    return '<div class="card trip" style="flex-wrap:wrap">' +
       '<div class="stamp ' + color + '" style="width:52px;height:52px">' + icon(ICON_PLANE, 26) + '</div>' +
       '<div class="tbody">' + name + place + when + '</div>' +
-      ICON_CHEV +
+      buttons +
       '</div>';
   }
   return '<div class="card trip">' +
     '<div class="trip-top"><div class="stamp ' + color + '" style="width:48px;height:48px">' + icon(ICON_PLANE, 24) + '</div>' + name + '</div>' +
     place + when +
-    '<div class="open">Відкрити' + ICON_ARROW + '</div>' +
+    buttons +
     '</div>';
 }
 
@@ -119,8 +165,104 @@ function emptyCard() {
     '<i style="width:8px;height:8px;right:2px;bottom:-8px;background:#6D3FC9;opacity:.5"></i></div>' +
     '<h2>Створіть першу подорож</h2>' +
     '<p>Тут зʼявлятимуться всі ваші подорожі — зі справами, речами, бюджетом і місцями, які хочеться відвідати.</p>' +
-    '<button type="button" class="btn btn-orange' + (phone.matches ? ' full' : '') + '">' + ICON_PLUS + 'Створити подорож</button>' +
+    '<button type="button" class="btn btn-orange' + (phone.matches ? ' full' : '') + '" data-action="create">' + ICON_PLUS + 'Створити подорож</button>' +
     '</div>';
+}
+
+// ---------- 4. Форма: створити / редагувати (K3) ----------
+
+// trip — подорож для редагування; без неї — порожня форма «Нова подорож».
+function openForm(trip) {
+  editingId = trip ? trip.id : null;
+  formTitle.textContent = trip ? 'Редагувати подорож' : 'Нова подорож';
+  for (const key in fields) fields[key].value = (trip && trip[key]) || '';
+  showError('');
+  saveBtn.disabled = false;
+  show(listScreen, false);
+  show(formScreen, true);
+  window.scrollTo(0, 0);
+  fields.title.focus();
+}
+
+function closeForm() {
+  show(formScreen, false);
+  show(listScreen, true);
+}
+
+async function saveTrip(event) {
+  // Без цього браузер сам перезавантажив би сторінку після натискання «Зберегти».
+  event.preventDefault();
+
+  const data = {
+    title: fields.title.value.trim(),
+    location: fields.location.value.trim() || null,
+    // Порожня дата — це «не вказано» (null), а не порожній текст, якого база не прийме.
+    start_date: fields.start_date.value || null,
+    end_date: fields.end_date.value || null,
+  };
+
+  // Перевірки до відправки в базу.
+  if (!data.title) {
+    showError('Вкажіть назву подорожі.');
+    fields.title.focus();
+    return;
+  }
+  // Дати у форматі 2027-04-14 можна порівнювати як текст: раніша дата «менша».
+  if (data.start_date && data.end_date && data.end_date < data.start_date) {
+    showError('Дата кінця не може бути раніше за дату початку.');
+    fields.end_date.focus();
+    return;
+  }
+
+  // Блокуємо кнопку, щоб подвійне натискання не створило дві однакові подорожі.
+  saveBtn.disabled = true;
+  showError('');
+  try {
+    if (editingId === null) {
+      await api('POST', '', data);                       // нова подорож
+    } else {
+      await api('PATCH', '?id=eq.' + editingId, data);   // змінюємо лише подорож з цим id
+    }
+    closeForm();
+    loadTrips(); // перечитуємо список з бази — бачимо саме те, що там збереглося
+  } catch (err) {
+    console.error('Не вдалося зберегти подорож:', err);
+    showError('Не вдалося зберегти. Перевірте інтернет і спробуйте ще раз.');
+    saveBtn.disabled = false;
+  }
+}
+
+// ---------- 5. Видалення (K3) ----------
+
+async function deleteTrip(trip) {
+  // Поки — стандартне віконце браузера. На кроці K7 замінимо його
+  // на гарний діалог з макета («Видалити подорож разом з усім наповненням?»).
+  const ok = window.confirm('Видалити подорож «' + (trip.title || 'Без назви') + '»? Цю дію не можна скасувати.');
+  if (!ok) return;
+  try {
+    await api('DELETE', '?id=eq.' + trip.id);
+    loadTrips();
+  } catch (err) {
+    console.error('Не вдалося видалити подорож:', err);
+    window.alert('Не вдалося видалити подорож. Перевірте інтернет і спробуйте ще раз.');
+  }
+}
+
+// Один обробник на всі кнопки в списку: дивимось на data-action натиснутої кнопки.
+function onListClick(event) {
+  const button = event.target.closest('[data-action]');
+  if (!button) return;
+  const action = button.dataset.action;
+  if (action === 'create') return openForm(null);
+  const trip = trips.find(t => String(t.id) === button.dataset.id);
+  if (!trip) return;
+  if (action === 'edit') openForm(trip);
+  if (action === 'delete') deleteTrip(trip);
+}
+
+function showError(text) {
+  formError.textContent = text;
+  show(formError, Boolean(text));
 }
 
 // ---------- Допоміжні функції ----------
@@ -178,4 +320,13 @@ const ICON_PLUS = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" s
 applyLayout();
 // Якщо користувач поверне телефон або змінить розмір вікна — перемкнемо вигляд.
 phone.addEventListener('change', applyLayout);
+// Кнопки: «Створити подорож» угорі, кнопки на картках, форма.
+createBtn.addEventListener('click', () => openForm(null));
+tripsBox.addEventListener('click', onListClick);
+form.addEventListener('submit', saveTrip);
+cancelBtn.addEventListener('click', closeForm);
+document.getElementById('form-back').addEventListener('click', event => {
+  event.preventDefault();
+  closeForm();
+});
 loadTrips();
