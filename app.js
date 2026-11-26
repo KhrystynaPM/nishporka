@@ -176,6 +176,7 @@ function openForm(trip) {
   editingId = trip ? trip.id : null;
   formTitle.textContent = trip ? 'Редагувати подорож' : 'Нова подорож';
   for (const key in fields) fields[key].value = (trip && trip[key]) || '';
+  updateDateHints();
   showError('');
   saveBtn.disabled = false;
   show(listScreen, false);
@@ -260,6 +261,23 @@ function onListClick(event) {
   if (action === 'delete') deleteTrip(trip);
 }
 
+// Поле date показує дату у форматі браузера: в англомовному це мм/дд/рррр,
+// і легко ввести 04/10 маючи на увазі 4 жовтня, а отримати 10 квітня.
+// Тому під полем пишемо вибрану дату словами — помилку видно одразу.
+const MONTHS = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня',
+  'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
+
+function dateInWords(value) {
+  if (!value) return '';
+  const [y, m, d] = value.split('-');
+  return Number(d) + ' ' + MONTHS[Number(m) - 1] + ' ' + y;
+}
+
+function updateDateHints() {
+  document.getElementById('trip-start-hint').textContent = dateInWords(fields.start_date.value);
+  document.getElementById('trip-end-hint').textContent = dateInWords(fields.end_date.value);
+}
+
 function showError(text) {
   formError.textContent = text;
   show(formError, Boolean(text));
@@ -325,6 +343,8 @@ createBtn.addEventListener('click', () => openForm(null));
 tripsBox.addEventListener('click', onListClick);
 form.addEventListener('submit', saveTrip);
 cancelBtn.addEventListener('click', closeForm);
+fields.start_date.addEventListener('input', updateDateHints);
+fields.end_date.addEventListener('input', updateDateHints);
 document.getElementById('form-back').addEventListener('click', event => {
   event.preventDefault();
   closeForm();
