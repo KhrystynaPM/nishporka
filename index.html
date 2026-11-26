@@ -45,6 +45,20 @@
       </div>
     </main>
 
+    <!-- Екран «Подорож» (Екран 2 з аналізу, макет Trip-Desktop / Trip-Mobile).
+         Відкривається, коли адреса закінчується на #trip/номер (наприклад, #trip/1).
+         Вміст малює app.js: картку подорожі й 4 блоки (справи, речі, бюджет, місця). -->
+    <main class="main" id="trip-screen" style="display:none;padding-top:24px">
+      <div class="wrap">
+        <!-- href="#" — повертає на список подорожей (адреса без #trip/…) -->
+        <a class="back" href="#"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Усі подорожі</a>
+        <!-- Картка подорожі: назва, локація, дати, кнопки «Редагувати» і «Видалити» -->
+        <div id="trip-info"></div>
+        <!-- 4 блоки-списки -->
+        <div id="blocks"></div>
+      </div>
+    </main>
+
     <!-- Екран форми подорожі (макет Form-Trip). Один і той самий для «Нова подорож»
          і «Редагувати подорож» — app.js лише міняє заголовок і заповнює поля.
          Поки форма закрита, вона схована (display:none). -->
