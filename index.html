@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="uk">
+<head>
+  <meta charset="utf-8">
+  <!-- Щоб на телефоні сторінка мала ширину екрана, а не «зменшеного ноутбука» -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Нишпорка — занотуй свою пригоду</title>
+
+  <!-- Шрифти айдентики: Unbounded (назва), Caveat (слоган), Nunito (текст) -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Unbounded:wght@600;700&family=Caveat:wght@600;700&display=swap">
+  <!-- Спільний стиль з макета V1 -->
+  <link rel="stylesheet" href="nishporka.css">
+</head>
+<body>
+  <!-- .app — увесь застосунок. Клас lg (ноутбук) або sm (телефон) ставить app.js -->
+  <div class="app lg" id="app" style="min-height:100vh">
+
+    <!-- Шапка: логотип, назва, слоган -->
+    <header class="bar">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6"/><path d="M15 15l5.5 5.5"/><circle cx="10.5" cy="10.5" r="1.7" fill="#FF9440" stroke="none"/></svg>
+      </div>
+      <div class="word">Нишпорка</div>
+      <div class="slogan">«Занотуй свою пригоду»</div>
+    </header>
+
+    <!-- Основна частина. Поки порожня: список подорожей з’явиться на кроці K2 -->
+    <main class="main">
+      <div class="wrap">
+        <h1 class="h1">Мої подорожі</h1>
+        <p class="muted" style="margin:8px 0 0;font-size:16px">Скоро тут з’являться ваші подорожі.</p>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
