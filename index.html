@@ -24,16 +24,31 @@
       <div class="slogan">«Занотуй свою пригоду»</div>
     </header>
 
-    <!-- Основна частина. Поки порожня: список подорожей з’явиться на кроці K2 -->
+    <!-- Основна частина: екран «Мої подорожі» (Екран 1 з аналізу) -->
     <main class="main">
       <div class="wrap">
-        <h1 class="h1">Мої подорожі</h1>
-        <p class="muted" style="margin:8px 0 0;font-size:16px">Скоро тут з’являться ваші подорожі.</p>
+        <!-- На телефоні слоган стоїть тут, над заголовком (як у макеті Trips-Mobile) -->
+        <div class="slogan" id="slogan-sm" style="display:inline-block" hidden>«Занотуй свою пригоду»</div>
+
+        <div class="titlerow" id="titlerow">
+          <div>
+            <h1 class="h1">Мої подорожі</h1>
+            <!-- Тут app.js пише «Завантажуємо…» або «5 подорожей» -->
+            <p class="muted" id="count" style="margin:8px 0 0;font-size:16px">Завантажуємо подорожі…</p>
+          </div>
+          <!-- Кнопка поки не працює: створення подорожі — це крок K3 -->
+          <button type="button" class="btn btn-orange" id="create-btn"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>Створити подорож</button>
+        </div>
+
+        <!-- Сюди app.js вставляє картки подорожей з бази (або повідомлення про помилку) -->
+        <div id="trips"></div>
       </div>
     </main>
 
   </div>
 
+  <!-- Адреса бази й публічний ключ — окремим файлом, щоб їх було легко знайти -->
+  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
