@@ -70,10 +70,14 @@
             <div>
               <label class="lbl" for="trip-start">Дата початку</label>
               <input class="inp" id="trip-start" type="date">
+              <!-- Підказка словами («10 квітня 2027»): поле date може показувати мм/дд, і так видно, яку дату насправді вибрано -->
+              <p class="muted" id="trip-start-hint" style="margin:6px 0 0;font-size:14px;font-weight:700"></p>
             </div>
             <div>
               <label class="lbl" for="trip-end">Дата кінця</label>
               <input class="inp" id="trip-end" type="date">
+              <!-- Підказка словами («10 квітня 2027»): поле date може показувати мм/дд, і так видно, яку дату насправді вибрано -->
+              <p class="muted" id="trip-end-hint" style="margin:6px 0 0;font-size:14px;font-weight:700"></p>
             </div>
           </div>
           <!-- Сюди app.js пише помилку: не вказана назва, дати переплутані, база не відповіла -->
