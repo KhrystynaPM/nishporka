@@ -62,7 +62,7 @@ async function loadTrips() {
   // Звертаємося до таблиці trips через інтернет (REST API Supabase).
   // select=… — які поля взяти; order=id.asc — у порядку додавання.
   try {
-    trips = await api('GET', '?select=id,title,location,start_date,end_date&order=id.asc');
+    trips = await api('GET', 'trips', '?select=id,title,location,start_date,end_date&order=id.asc');
   } catch (err) {
     // Причину пишемо в консоль браузера — для розробника. Користувачу — простий текст.
     console.error('Не вдалося завантажити подорожі:', err);
@@ -71,10 +71,11 @@ async function loadTrips() {
   render();
 }
 
-// Один спільний «листоноша» для всіх запитів до таблиці trips.
+// Один спільний «листоноша» для всіх запитів до бази.
 // method: GET — прочитати, POST — створити, PATCH — змінити, DELETE — видалити.
-async function api(method, query, body) {
-  const response = await fetch(SUPABASE_URL + '/rest/v1/trips' + query, {
+// table: у яку таблицю звертаємось — trips, todos, packing_items, budget_items чи places.
+async function api(method, table, query, body) {
+  const response = await fetch(SUPABASE_URL + '/rest/v1/' + table + query, {
     method: method,
     headers: {
       apikey: SUPABASE_KEY,
@@ -220,9 +221,9 @@ async function saveTrip(event) {
   showError('');
   try {
     if (editingId === null) {
-      await api('POST', '', data);                       // нова подорож
+      await api('POST', 'trips', '', data);                       // нова подорож
     } else {
-      await api('PATCH', '?id=eq.' + editingId, data);   // змінюємо лише подорож з цим id
+      await api('PATCH', 'trips', '?id=eq.' + editingId, data); // змінюємо лише подорож з цим id
     }
     closeForm();
     loadTrips(); // перечитуємо список з бази — бачимо саме те, що там збереглося
@@ -241,7 +242,7 @@ async function deleteTrip(trip) {
   const ok = window.confirm('Видалити подорож «' + (trip.title || 'Без назви') + '»? Цю дію не можна скасувати.');
   if (!ok) return;
   try {
-    await api('DELETE', '?id=eq.' + trip.id);
+    await api('DELETE', 'trips', '?id=eq.' + trip.id);
     loadTrips();
   } catch (err) {
     console.error('Не вдалося видалити подорож:', err);
