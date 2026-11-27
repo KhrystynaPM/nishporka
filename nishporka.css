@@ -168,3 +168,17 @@ summary.bh:hover .tog{background:var(--line)}
 .dact.c{justify-content:flex-end}
 .dact.b{flex-direction:column;margin-top:24px}
 .skel{height:260px}
+
+/* K8 — адаптивність: дрібні виправлення для вузьких і «середніх» екранів */
+/* Довгі слова (назви, суми) переносяться, а не вилазять за картку */
+.h1,.trip-name,.chk span,.txt,.lnk b,.bt h2{overflow-wrap:anywhere}
+/* Бюджет: між назвою витрати й сумою завжди є проміжок */
+.amt{padding-left:8px}
+/* «Разом»: велика сума не вилазить за блок; на телефоні трохи менший шрифт */
+.total b{min-width:0;text-align:right;overflow-wrap:anywhere}
+.sm .total b{font-size:22px}
+/* Кнопки «Редагувати» / «Видалити»: на дуже вузькому телефоні — одна під одною */
+.sm .btns{flex-wrap:wrap}
+.sm .btns .btn{flex:1 1 120px;min-width:0}
+/* Планшет і малий ноутбук (701–1000 px): картки подорожей у 2 колонки, а не в 3 */
+@media (min-width:701px) and (max-width:1000px){.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
