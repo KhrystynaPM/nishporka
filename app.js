@@ -723,6 +723,9 @@ async function saveRow() {
     } else {
       const saved = await api('PATCH', b.table, '?id=eq.' + form.id, data);
       if (token !== loadToken) return;
+      // База нічого не змінила (порожня відповідь) — рядка вже немає:
+      // його видалили з іншого пристрою, поки тут була відкрита форма.
+      if (saved.length === 0) return rowGone(key, form.id);
       rows[key] = rows[key].map(r => r.id === form.id ? saved[0] : r);
     }
     if (rowForm === form) rowForm = null;
@@ -733,6 +736,15 @@ async function saveRow() {
     form.error = 'Не вдалося зберегти. Перевірте інтернет і спробуйте ще раз.';
   }
   renderBlock(key);
+}
+
+// Рядок, який ми редагували чи відмічали, хтось уже видалив (посилання ж спільне, R3).
+// Прибираємо його з екрана й пояснюємо, що сталося.
+function rowGone(key, id) {
+  rows[key] = rows[key].filter(r => r.id !== id);
+  if (rowForm && rowForm.block === key && rowForm.id === id) rowForm = null;
+  renderBlock(key);
+  window.alert('Цей рядок уже видалили — можливо, з іншого пристрою.');
 }
 
 function showRowError(text) {
@@ -748,7 +760,8 @@ async function toggleRow(key, row, checkbox) {
   row[field] = value;
   updateCounter(key); // «2 з 5» → «3 з 5» одразу
   try {
-    await api('PATCH', BLOCKS[key].table, '?id=eq.' + row.id, { [field]: value });
+    const saved = await api('PATCH', BLOCKS[key].table, '?id=eq.' + row.id, { [field]: value });
+    if (saved.length === 0) rowGone(key, row.id); // рядка вже немає в базі
   } catch (err) {
     row[field] = !value;
     updateCounter(key);
