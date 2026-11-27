@@ -480,14 +480,49 @@ function renderBlock(key) {
     }
     body += adding ? rowFormHtml(key)
       : '<button type="button" class="btn btn-add" data-action="add-row">' + icon(PATH_PLUS, 18) + b.add + '</button>';
-    // K6: тут зʼявиться «Разом … €» для бюджету, а в заголовках — лічильники «2 з 5».
+    // K6: під бюджетом — «Разом … €», сума всіх витрат (як у макеті, під кнопкою).
+    if (b.amount) body += '<div class="total"><i>Разом</i><b>' + money(budgetTotal(list)) + '</b></div>';
   }
 
   // <details> — стандартний «розкривний» блок браузера: клік по заголовку (<summary>) згортає й розгортає.
   place.innerHTML = '<details class="card block" data-block="' + key + '"' + (collapsed.has(key) ? '' : ' open') + '>' +
     '<summary class="bh"><div class="bt"><div class="stamp bi ' + b.color + '">' + icon(b.icon, 18) + '</div><h2>' + b.title + '</h2></div>' +
-    '<span class="bend">' + (b.chip || '') + ICON_TOGGLE + '</span></summary>' +
+    '<span class="bend">' + (b.chip || counterHtml(key)) + ICON_TOGGLE + '</span></summary>' +
     body + '</details>';
+}
+
+// ---------- 9. Автосума і лічильники (K6) ----------
+
+// Лічильник у заголовку блоку (як у макеті):
+//   Справи, Речі в дорогу — «скільки відмічено з усіх», напр. «2 з 5»; порожній блок — «0»;
+//   Місця — просто кількість, напр. «3».
+// Рахуємо щоразу з рядків, що вже є на екрані, тож окремо в базі нічого не зберігаємо.
+function counterText(key) {
+  const b = BLOCKS[key];
+  const list = rows[key];
+  if (!Array.isArray(list)) return ''; // ще завантажуємо або помилка — лічильник не показуємо
+  if (!b.check || list.length === 0) return String(list.length);
+  const done = list.filter(r => r[b.check]).length;
+  return done + ' з ' + list.length;
+}
+
+function counterHtml(key) {
+  const text = counterText(key);
+  return text ? '<span class="chip" data-counter>' + text + '</span>' : '';
+}
+
+// Галочку поставили чи зняли — оновлюємо лише цифру в заголовку,
+// а не весь блок (щоб не «стрибав» екран і не губився фокус).
+function updateCounter(key) {
+  const chip = blocksBox.querySelector('[data-block="' + key + '"] [data-counter]');
+  if (chip) chip.textContent = counterText(key);
+}
+
+// Сума бюджету. Рахуємо в центах (цілими числами): так 0,1 + 0,2 дає рівно 0,3,
+// а не 0,30000000000000004, як буває з дробами в JavaScript.
+function budgetTotal(list) {
+  const cents = list.reduce((sum, r) => sum + Math.round(Number(r.amount_eur || 0) * 100), 0);
+  return cents / 100;
 }
 
 // Один рядок блоку: галочка / текст / сума / посилання + кнопки «Редагувати» і «Видалити».
@@ -626,10 +661,13 @@ async function toggleRow(key, row, checkbox) {
   const field = BLOCKS[key].check;
   const value = checkbox.checked;
   checkbox.closest('.chk').classList.toggle('done', value);
+  row[field] = value;
+  updateCounter(key); // «2 з 5» → «3 з 5» одразу
   try {
     await api('PATCH', BLOCKS[key].table, '?id=eq.' + row.id, { [field]: value });
-    row[field] = value;
   } catch (err) {
+    row[field] = !value;
+    updateCounter(key);
     console.error('Не вдалося зберегти галочку:', err);
     // Повертаємо, як було, щоб на екрані не було того, чого немає в базі.
     checkbox.checked = !value;
