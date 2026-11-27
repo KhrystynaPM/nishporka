@@ -3,6 +3,7 @@
 // 2) Беремо список подорожей з бази Supabase і малюємо картки (крок K2).
 // 3) Створюємо, редагуємо й видаляємо подорожі (крок K3).
 // 4) Екран подорожі з 4 блоками: справи, речі, бюджет, місця (крок K5).
+// 5) Видалення подорожі через діалог з макета (крок K7).
 // Адреса бази й ключ лежать у config.js.
 
 const app = document.getElementById('app');
@@ -239,20 +240,88 @@ async function saveTrip(event) {
   }
 }
 
-// ---------- 5. Видалення (K3) ----------
+// ---------- 5. Видалення подорожі з підтвердженням (K3, діалог — K7) ----------
 
-async function deleteTrip(trip) {
-  // Поки — стандартне віконце браузера. На кроці K7 замінимо його
-  // на гарний діалог з макета («Видалити подорож разом з усім наповненням?»).
-  const ok = window.confirm('Видалити подорож «' + (trip.title || 'Без назви') + '»? Цю дію не можна скасувати.');
-  if (!ok) return;
+const deleteDialog = document.getElementById('delete-dialog');
+// Яку подорож збираємось видалити, поки відкритий діалог.
+let deletingTrip = null;
+// Кнопка, з якої відкрили діалог: після закриття повертаємо на неї фокус (зручно з клавіатури).
+let deleteOpener = null;
+
+// Відкриваємо діалог з макета: «Видалити подорож «…»?».
+function deleteTrip(trip) {
+  deletingTrip = trip;
+  deleteOpener = document.activeElement;
+  const mode = phone.matches ? 'b' : 'c'; // b — панель знизу (телефон), c — віконце посередині (ноутбук)
+  const cancel = '<button type="button" class="btn btn-line' + (mode === 'b' ? ' full' : '') + '" data-action="cancel">Скасувати</button>';
+  const remove = '<button type="button" class="btn btn-danger' + (mode === 'b' ? ' full' : '') + '" data-action="confirm"' +
+    (mode === 'c' ? ' style="padding:0 28px"' : '') + '>Видалити</button>';
+  deleteDialog.className = 'scrim ' + mode;
+  deleteDialog.innerHTML =
+    '<div class="dialog ' + mode + '" role="dialog" aria-modal="true" aria-labelledby="del-title" aria-describedby="del-text">' +
+      (mode === 'b' ? '<div class="grab" aria-hidden="true"></div>' : '') +
+      '<div class="stamp t-red" style="width:56px;height:56px">' + icon(PATH_TRASH, 26) + '</div>' +
+      '<h2 class="dtitle" id="del-title">Видалити подорож «' + safe(trip.title || 'Без назви') + '»?</h2>' +
+      '<p class="dtext" id="del-text"' + (mode === 'b' ? ' style="margin-top:10px"' : '') + '>Подорож буде видалено разом з усіма справами, речами, бюджетом і посиланнями. Цю дію не можна скасувати.</p>' +
+      // Сюди пишемо помилку, якщо база не відповіла (у макеті цього стану немає).
+      '<p id="del-error" role="alert" style="display:none;margin:12px 0 0;font-weight:700;color:var(--red)"></p>' +
+      // На ноутбуці «Скасувати» ліворуч, «Видалити» праворуч; на телефоні «Видалити» зверху — як у макеті.
+      '<div class="dact ' + mode + '">' + (mode === 'b' ? remove + cancel : cancel + remove) + '</div>' +
+    '</div>';
+  deleteDialog.style.display = 'flex';
+  document.body.style.overflow = 'hidden'; // поки діалог відкритий, сторінка під ним не прокручується
+  // Фокус на «Скасувати»: випадкове натискання Enter нічого не зламає.
+  deleteDialog.querySelector('[data-action="cancel"]').focus();
+}
+
+function closeDeleteDialog() {
+  deleteDialog.style.display = 'none';
+  deleteDialog.innerHTML = '';
+  document.body.style.overflow = '';
+  deletingTrip = null;
+  if (deleteOpener && document.body.contains(deleteOpener)) deleteOpener.focus();
+  deleteOpener = null;
+}
+
+// Натиснули «Видалити» в діалозі — видаляємо в базі.
+// Справи, речі, бюджет і місця база стирає сама (on delete cascade, крок K4).
+async function confirmDeleteTrip() {
+  const trip = deletingTrip;
+  if (!trip) return;
+  const buttons = deleteDialog.querySelectorAll('button');
+  buttons.forEach(b => { b.disabled = true; }); // щоб не натиснути двічі
   try {
     await api('DELETE', 'trips', '?id=eq.' + trip.id);
+    closeDeleteDialog();
     // Подорожі більше немає — повертаємось до списку (адреса без #trip/…).
     location.hash = '';
   } catch (err) {
     console.error('Не вдалося видалити подорож:', err);
-    window.alert('Не вдалося видалити подорож. Перевірте інтернет і спробуйте ще раз.');
+    const error = document.getElementById('del-error');
+    error.textContent = 'Не вдалося видалити. Перевірте інтернет і спробуйте ще раз.';
+    error.style.display = '';
+    buttons.forEach(b => { b.disabled = false; });
+  }
+}
+
+function onDeleteDialogClick(event) {
+  // Клік по затемненню поза віконцем = «Скасувати».
+  if (event.target === deleteDialog) { closeDeleteDialog(); return; }
+  const button = event.target.closest('button[data-action]');
+  if (!button) return;
+  if (button.dataset.action === 'cancel') closeDeleteDialog();
+  if (button.dataset.action === 'confirm') confirmDeleteTrip();
+}
+
+function onDeleteDialogKey(event) {
+  if (event.key === 'Escape') { closeDeleteDialog(); return; }
+  // Tab «ходить по колу» лише між двома кнопками діалогу, не тікає на сторінку під ним.
+  if (event.key === 'Tab') {
+    const buttons = Array.from(deleteDialog.querySelectorAll('button'));
+    const i = buttons.indexOf(document.activeElement);
+    const next = event.shiftKey ? (i <= 0 ? buttons.length - 1 : i - 1) : (i + 1) % buttons.length;
+    buttons[next].focus();
+    event.preventDefault();
   }
 }
 
@@ -297,6 +366,8 @@ function currentTripId() {
 }
 
 function route() {
+  // Пішли на інший екран (наприклад, кнопкою «Назад») — діалог видалення закриваємо.
+  if (deletingTrip) closeDeleteDialog();
   const id = currentTripId();
   show(formScreen, false);
   show(listScreen, id === null);
@@ -852,6 +923,9 @@ document.getElementById('form-back').addEventListener('click', event => {
 });
 // Екран подорожі: кнопки на картці подорожі й усе всередині 4 блоків.
 tripInfoBox.addEventListener('click', onTripInfoClick);
+// Діалог видалення подорожі (K7).
+deleteDialog.addEventListener('click', onDeleteDialogClick);
+deleteDialog.addEventListener('keydown', onDeleteDialogKey);
 blocksBox.addEventListener('click', onBlocksClick);
 blocksBox.addEventListener('change', onBlocksChange);
 blocksBox.addEventListener('input', onBlocksInput);
