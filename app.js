@@ -3,7 +3,7 @@
 // 2) Беремо список подорожей з бази Supabase і малюємо картки (крок K2).
 // 3) Створюємо, редагуємо й видаляємо подорожі (крок K3).
 // 4) Екран подорожі з 4 блоками: справи, речі, бюджет, місця (крок K5).
-// 5) Видалення подорожі через діалог з макета (крок K7).
+// 5) Видалення подорожі й рядків через діалог з макета (крок K7).
 // Адреса бази й ключ лежать у config.js.
 
 const app = document.getElementById('app');
@@ -240,17 +240,20 @@ async function saveTrip(event) {
   }
 }
 
-// ---------- 5. Видалення подорожі з підтвердженням (K3, діалог — K7) ----------
+// ---------- 5. Видалення з підтвердженням: діалог з макета (K7) ----------
+// Один діалог на все: подорож (текст з макета Delete-Desktop / Delete-Mobile)
+// і окремі рядки в блоках (той самий вигляд, свій текст).
 
 const deleteDialog = document.getElementById('delete-dialog');
-// Яку подорож збираємось видалити, поки відкритий діалог.
-let deletingTrip = null;
+// Що робити, коли натиснули «Видалити» в діалозі; null — діалог закритий.
+let deleteAction = null;
 // Кнопка, з якої відкрили діалог: після закриття повертаємо на неї фокус (зручно з клавіатури).
 let deleteOpener = null;
 
-// Відкриваємо діалог з макета: «Видалити подорож «…»?».
-function deleteTrip(trip) {
-  deletingTrip = trip;
+// Відкриваємо діалог. title і text — звичайний текст (не HTML),
+// onConfirm — що видалити в базі, коли людина підтвердила.
+function openDeleteDialog(title, text, onConfirm) {
+  deleteAction = onConfirm;
   deleteOpener = document.activeElement;
   const mode = phone.matches ? 'b' : 'c'; // b — панель знизу (телефон), c — віконце посередині (ноутбук)
   const cancel = '<button type="button" class="btn btn-line' + (mode === 'b' ? ' full' : '') + '" data-action="cancel">Скасувати</button>';
@@ -261,8 +264,8 @@ function deleteTrip(trip) {
     '<div class="dialog ' + mode + '" role="dialog" aria-modal="true" aria-labelledby="del-title" aria-describedby="del-text">' +
       (mode === 'b' ? '<div class="grab" aria-hidden="true"></div>' : '') +
       '<div class="stamp t-red" style="width:56px;height:56px">' + icon(PATH_TRASH, 26) + '</div>' +
-      '<h2 class="dtitle" id="del-title">Видалити подорож «' + safe(trip.title || 'Без назви') + '»?</h2>' +
-      '<p class="dtext" id="del-text"' + (mode === 'b' ? ' style="margin-top:10px"' : '') + '>Подорож буде видалено разом з усіма справами, речами, бюджетом і посиланнями. Цю дію не можна скасувати.</p>' +
+      '<h2 class="dtitle" id="del-title">' + safe(title) + '</h2>' +
+      '<p class="dtext" id="del-text"' + (mode === 'b' ? ' style="margin-top:10px"' : '') + '>' + safe(text) + '</p>' +
       // Сюди пишемо помилку, якщо база не відповіла (у макеті цього стану немає).
       '<p id="del-error" role="alert" style="display:none;margin:12px 0 0;font-weight:700;color:var(--red)"></p>' +
       // На ноутбуці «Скасувати» ліворуч, «Видалити» праворуч; на телефоні «Видалити» зверху — як у макеті.
@@ -278,30 +281,38 @@ function closeDeleteDialog() {
   deleteDialog.style.display = 'none';
   deleteDialog.innerHTML = '';
   document.body.style.overflow = '';
-  deletingTrip = null;
+  deleteAction = null;
   if (deleteOpener && document.body.contains(deleteOpener)) deleteOpener.focus();
   deleteOpener = null;
 }
 
 // Натиснули «Видалити» в діалозі — видаляємо в базі.
-// Справи, речі, бюджет і місця база стирає сама (on delete cascade, крок K4).
-async function confirmDeleteTrip() {
-  const trip = deletingTrip;
-  if (!trip) return;
+async function confirmDelete() {
+  if (!deleteAction) return;
   const buttons = deleteDialog.querySelectorAll('button');
   buttons.forEach(b => { b.disabled = true; }); // щоб не натиснути двічі
   try {
-    await api('DELETE', 'trips', '?id=eq.' + trip.id);
+    await deleteAction();
     closeDeleteDialog();
-    // Подорожі більше немає — повертаємось до списку (адреса без #trip/…).
-    location.hash = '';
   } catch (err) {
-    console.error('Не вдалося видалити подорож:', err);
+    console.error('Не вдалося видалити:', err);
     const error = document.getElementById('del-error');
     error.textContent = 'Не вдалося видалити. Перевірте інтернет і спробуйте ще раз.';
     error.style.display = '';
     buttons.forEach(b => { b.disabled = false; });
   }
+}
+
+// Видалення подорожі. Справи, речі, бюджет і місця база стирає сама (on delete cascade, крок K4).
+function deleteTrip(trip) {
+  openDeleteDialog(
+    'Видалити подорож «' + (trip.title || 'Без назви') + '»?',
+    'Подорож буде видалено разом з усіма справами, речами, бюджетом і посиланнями. Цю дію не можна скасувати.',
+    async () => {
+      await api('DELETE', 'trips', '?id=eq.' + trip.id);
+      // Подорожі більше немає — повертаємось до списку (адреса без #trip/…).
+      location.hash = '';
+    });
 }
 
 function onDeleteDialogClick(event) {
@@ -310,7 +321,7 @@ function onDeleteDialogClick(event) {
   const button = event.target.closest('button[data-action]');
   if (!button) return;
   if (button.dataset.action === 'cancel') closeDeleteDialog();
-  if (button.dataset.action === 'confirm') confirmDeleteTrip();
+  if (button.dataset.action === 'confirm') confirmDelete();
 }
 
 function onDeleteDialogKey(event) {
@@ -367,7 +378,7 @@ function currentTripId() {
 
 function route() {
   // Пішли на інший екран (наприклад, кнопкою «Назад») — діалог видалення закриваємо.
-  if (deletingTrip) closeDeleteDialog();
+  if (deleteAction) closeDeleteDialog();
   const id = currentTripId();
   show(formScreen, false);
   show(listScreen, id === null);
@@ -747,18 +758,20 @@ async function toggleRow(key, row, checkbox) {
   }
 }
 
-async function deleteRow(key, row) {
+// Видалення рядка в блоці — той самий діалог, що й для подорожі (K7).
+function deleteRow(key, row) {
   const b = BLOCKS[key];
-  if (!window.confirm('Видалити «' + (row[b.text] || '') + '»?')) return;
-  try {
-    await api('DELETE', b.table, '?id=eq.' + row.id);
-    rows[key] = rows[key].filter(r => r.id !== row.id);
-    if (rowForm && rowForm.block === key && rowForm.id === row.id) rowForm = null;
-    renderBlock(key);
-  } catch (err) {
-    console.error('Не вдалося видалити рядок:', err);
-    window.alert('Не вдалося видалити. Перевірте інтернет і спробуйте ще раз.');
-  }
+  // «Редагувати справу» → «справу»: так у заголовку «Видалити справу «…»?».
+  const what = b.editTitle.replace('Редагувати ', '');
+  openDeleteDialog(
+    'Видалити ' + what + ' «' + (row[b.text] || '') + '»?',
+    'Цю дію не можна скасувати.',
+    async () => {
+      await api('DELETE', b.table, '?id=eq.' + row.id);
+      rows[key] = rows[key].filter(r => r.id !== row.id);
+      if (rowForm && rowForm.block === key && rowForm.id === row.id) rowForm = null;
+      renderBlock(key);
+    });
 }
 
 // Знаходимо, у якому блоці й якому рядку натиснули.
